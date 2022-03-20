@@ -1,1 +1,1 @@
-# funker
+# Symfony Functional Testing Suite
