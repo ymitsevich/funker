@@ -1,0 +1,27 @@
+{
+    "name": "ymitsevich/funker",
+    "description": "Symfony functional testing suite",
+    "type": "symfony-bundle",
+    "version": "0.0.1",
+    "license": "MIT",
+    "minimum-stability": "alpha",
+    "autoload": {
+        "psr-4": {
+            "Ymitsevich\\Funker\\": "src/"
+        }
+    },
+    "authors": [
+        {
+            "name": "Yurii Mitsevych",
+            "email": "ymitsevich@gmail.com"
+        }
+    ],
+    "require": {
+        "php": "^7.4|^8",
+        "doctrine/doctrine-fixtures-bundle": "^3.4",
+        "symfony/property-access": "^5.3|^6.0",
+        "symfony/yaml": "^5.3|^6.0",
+        "nelmio/alice": "^3",
+        "phpunit/phpunit": "^9"
+    }
+}
