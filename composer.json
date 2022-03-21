@@ -2,7 +2,7 @@
     "name": "ymitsevich/funker",
     "description": "Symfony functional testing suite",
     "type": "symfony-bundle",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "license": "MIT",
     "minimum-stability": "alpha",
     "autoload": {
