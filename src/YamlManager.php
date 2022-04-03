@@ -8,25 +8,22 @@ use Symfony\Component\Yaml\Yaml;
 
 class YamlManager
 {
-    private const KEY_FIXTURES = 0;
-    private const KEY_SNAPSHOT = 1;
-
     private static ?array $data = null;
 
-    public function __construct(private EntityManagerInterface $em, private string $dataFileName)
+    public function __construct(private IdMutableEntityManager $em, private string $dataFileName)
     {
     }
 
     public function getYamlSnapshot(): array
     {
-        return Yaml::parse($this->getContent()[self::KEY_SNAPSHOT]);
+        return Yaml::parse($this->getFixtureContent());
     }
 
     public function applyFixtures(): void
     {
-        $loader = new NativeLoader();
+        $loader = new WithReflectionLoader();
 
-        $fixture = Yaml::parse($this->getContent()[self::KEY_FIXTURES]);
+        $fixture = Yaml::parse($this->getFixtureContent());
         $objectSet = $loader->loadData($fixture);
         foreach ($objectSet->getObjects() as $object) {
             $this->em->persist($object);
@@ -34,11 +31,11 @@ class YamlManager
         $this->em->flush();
     }
 
-    private function getContent(): array
+    private function getFixtureContent(): string
     {
         if (!static::$data || !array_key_exists($this->dataFileName, static::$data)) {
-            $combinedDataSrc = file_get_contents($this->dataFileName);
-            static::$data[$this->dataFileName] = explode('---', $combinedDataSrc);
+            $dataSrc = file_get_contents($this->dataFileName);
+            static::$data[$this->dataFileName] = $dataSrc;
         }
 
         return static::$data[$this->dataFileName];

@@ -7,13 +7,15 @@ use Doctrine\ORM\EntityManagerInterface;
 use LogicException;
 use ReflectionClass;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\Yaml\Yaml;
 
 class FunkerTestCaseBase extends WebTestCase
 {
-    private const DIR_DATA = 'data';
+    private const RESPONSES_DIR_DATA = 'responses';
 
     protected ?EntityManagerInterface $entityManager;
     private YamlManager $yamlManager;
+
 
     protected function setUp(): void
     {
@@ -29,9 +31,17 @@ class FunkerTestCaseBase extends WebTestCase
             ->get('doctrine')
             ->getManager();
 
-        $this->yamlManager = new YamlManager($this->entityManager, $this->getDataFilename());
+        $this->yamlManager = new YamlManager(
+            new IdMutableEntityManager($this->entityManager),
+            $this->getFixtureFilename()
+        );
 
-        $this->yamlManager->applyFixtures();
+        try {
+            $this->yamlManager->applyFixtures();
+        } catch (\Exception $e) {
+            error_log($e->getMessage());
+            $this->purgeDbData();
+        }
 
         $this->entityManager->clear();
     }
@@ -40,13 +50,9 @@ class FunkerTestCaseBase extends WebTestCase
     {
         parent::tearDown();
 
-        $purger = new ORMPurger($this->entityManager);
-        $purger->setPurgeMode(ORMPurger::PURGE_MODE_TRUNCATE);
-        $purger->purge();
+        $this->purgeDbData();
 
-        $this->entityManager->close();
-        $this->entityManager = null;
-        gc_collect_cycles();
+        $this->clean();
     }
 
     protected function getJsonDecodedResponse(): array
@@ -76,7 +82,7 @@ class FunkerTestCaseBase extends WebTestCase
     {
         $resultData = $this->getJsonDecodedResponse();
 
-        $snapshot = $this->yamlManager->getYamlSnapshot();
+        $snapshot = $this->getResponseSnapshot();
 
         if ($strict) {
             $this->assertSame($snapshot, $resultData);
@@ -87,13 +93,46 @@ class FunkerTestCaseBase extends WebTestCase
         $this->assertEquals($snapshot, $resultData);
     }
 
-    protected function getDataFilename(?string $filename = null): string
+    protected function getResponseSnapshot(): array
+    {
+        return Yaml::parse($this->getResponseContent());
+    }
+
+    protected function getResponseContent(): string
+    {
+        return file_get_contents($this->getResponseFilename());
+    }
+
+    protected function getResponseFilename(?string $filename = null): string
     {
         $filename = $filename ?? "{$this->getName()}.yaml";
 
         $testReflection = new ReflectionClass($this);
         $dirName = dirname($testReflection->getFilename());
 
-        return $dirName . DIRECTORY_SEPARATOR . self::DIR_DATA . DIRECTORY_SEPARATOR . $filename;
+        return $dirName . DIRECTORY_SEPARATOR . self::RESPONSES_DIR_DATA . DIRECTORY_SEPARATOR . $filename;
+    }
+
+    protected function getFixtureFilename(?string $filename = null): string
+    {
+        $testReflection = new ReflectionClass($this);
+        $dirName = dirname($testReflection->getFilename());
+        $filename = $filename ?? "{$testReflection->getShortName()}.yaml";
+
+        return $dirName . DIRECTORY_SEPARATOR . $filename;
+    }
+
+    private function purgeDbData(): void
+    {
+        $purger = new IncrementResetPurger($this->entityManager);
+        $purger->setPurgeMode(IncrementResetPurger::PURGE_MODE_DELETE);
+        $purger->purge();
+    }
+
+    private function clean(): void
+    {
+        $this->entityManager->close();
+        $this->entityManager = null;
+        gc_collect_cycles();
     }
 }
